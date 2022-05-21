@@ -1,0 +1,57 @@
+#############
+create table statement 
+
+CREATE TABLE transactionsTable (
+    transaction_id bigint NOT NULL PRIMARY KEY,
+    amount double,
+    type varchar(255),
+    parent_id bigint,
+    total_amount  double
+);
+
+
+###########
+Procedure statement - used in insert statement to insert and transitively update the sum
+
+DROP PROCEDURE InsertTransaction;
+
+DELIMITER $$
+CREATE PROCEDURE InsertTransaction (
+   trans_id BIGINT,
+   amount_to_add DOUBLE,
+   type varchar(265),
+   parent_id_to_insert BIGINT
+) 
+BEGIN
+   DECLARE curr_parent_id  BIGINT;
+   DECLARE str VARCHAR(10000)  DEFAULT '$';  
+  
+   SET str =  '';
+   
+   INSERT INTO transactionsTable VALUES(trans_id, amount_to_add, type, parent_id_to_insert, amount_to_add);
+
+   IF parent_id_to_insert > 0 THEN
+       SET str = parent_id_to_insert;
+       SET trans_id = parent_id_to_insert;
+   ELSE
+       SET trans_id = -1;
+   END IF; 
+
+   WHILE trans_id > 0 DO
+               SET curr_parent_id=(SELECT parent_id FROM transactionsTable WHERE transaction_id=trans_id); 
+               IF curr_parent_id > 0 THEN   
+                  SET str = concat(str,',',curr_parent_id);   
+                  SET trans_id = curr_parent_id;  
+               ELSE 
+                   SET trans_id = curr_parent_id;  
+               END IF;  
+  END WHILE;
+
+  UPDATE transactionsTable SET total_amount = total_amount + amount_to_add WHERE FIND_IN_SET(transaction_id,str)>0;
+
+  SELECT str;
+END$$
+
+DELIMITER ;
+
+
